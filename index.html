@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Franck&sa Family Budget</title>
+  <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
+  <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: 'Kanit', sans-serif;
+      background-color: #F8F0E3; /* Light cream/cookie dough background */
+    }
+    .active-btn {
+      box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2); /* Stronger shadow */
+      transform: translateY(-4px); /* More pronounced lift */
+      transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* Bouncy transition */
+    }
+    .btn-toggle {
+      transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* Bouncy transition */
+      cursor: pointer; /* Indicate clickable */
+    }
+    /* Custom scrollbar for record list */
+    #recordList {
+      max-height: 400px;
+      overflow-y: auto;
+      padding-right: 8px;
+    }
+    #recordList::-webkit-scrollbar {
+      width: 8px;
+    }
+    #recordList::-webkit-scrollbar-track {
+      background: #EADBC8; /* Cookie-like track */
+      border-radius: 10px;
+    }
+    #recordList::-webkit-scrollbar-thumb {
+      background: #DAA06D; /* Brown cookie thumb */
+      border-radius: 10px;
+    }
+    #recordList::-webkit-scrollbar-thumb:hover {
+      background: #B07B4C; /* Darker brown on hover */
+    }
+    /* Smooth transition for input focus */
+    input:focus, select:focus {
+      transition: all 0.2s ease-in-out;
+    }
+    /* Alternating row colors for better readability */
+    .record-item-odd {
+      background-color: #FDF8F0; /* Very light cream */
+    }
+    .record-item-even {
+      background-color: #F8F0E3; /* Slightly darker cream (same as body background) */
+    }
+  </style>
+</head>
+<body>
+  <div class="max-w-4xl mx-auto bg-white rounded-3xl shadow-2xl p-6 md:p-10 border border-[#F0EAD6]">
+    <h1 class="text-4xl text-[#D2691E] font-extrabold text-center mb-8 tracking-wide">
+      <span class="animate-pulse inline-block">🍪</span> Franck&sa Family <span class="animate-pulse inline-block">🍪</span>
+    </h1>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div class="bg-[#FFF8DC] p-5 rounded-xl text-center shadow-md border border-[#F0EAD6]">
+        <div class="text-[#D2691E] text-xl font-semibold">รายรับ</div>
+        <div id="totalIncome" class="text-3xl mt-2 font-bold text-[#8B4513]">฿0</div>
+      </div>
+      <div class="bg-[#FCE4EC] p-5 rounded-xl text-center shadow-md border border-[#F8D5E1]">
+        <div class="text-[#E91E63] text-xl font-semibold">รายจ่าย</div>
+        <div id="totalExpense" class="text-3xl mt-2 font-bold text-[#C2185B]">฿0</div>
+      </div>
+      <div class="bg-[#E8F5E9] p-5 rounded-xl text-center shadow-md border border-[#DDEEDD]">
+        <div class="text-[#4CAF50] text-xl font-semibold">คงเหลือ</div>
+        <div id="balance" class="text-3xl mt-2 font-bold text-[#2E7D32]">฿0</div>
+      </div>
+    </div>
+
+    <div class="bg-white p-6 rounded-xl shadow-lg mb-8 border border-[#F0EAD6]">
+      <canvas id="incomeExpenseChart" height="150"></canvas>
+      <p class="text-center text-sm text-gray-500 mt-4">
+        หากกราฟไม่แสดงผล หรือข้อมูลไม่ถูกต้อง โปรดตรวจสอบว่า Google Apps Script ของคุณทำงานได้ปกติและ URL ถูกต้อง
+      </p>
+      <p class="text-center text-sm text-gray-500 mt-2">
+        หากการลบข้อมูลไม่ทำงาน โปรดตรวจสอบ Log ใน Google Apps Script เพื่อดูรายละเอียด
+      </p>
+    </div>
+
+    <div class="bg-white p-6 rounded-xl shadow-lg mb-8 border border-[#F0EAD6]">
+      <div class="flex justify-center gap-4 mb-5">
+        <button id="incomeBtnNew" class="flex items-center px-6 py-3 bg-green-500 text-white font-semibold rounded-full shadow-lg hover:bg-green-600 focus:outline-none focus:ring-4 focus:ring-green-300 transition duration-300 ease-in-out transform hover:scale-105">
+          <span class="text-2xl mr-2">🍀</span> รายรับ
+        </button>
+        <button id="expenseBtnNew" class="flex items-center px-6 py-3 bg-red-500 text-white font-semibold rounded-full shadow-lg hover:bg-red-600 focus:outline-none focus:ring-4 focus:ring-red-300 transition duration-300 ease-in-out transform hover:scale-105">
+          <span class="text-2xl mr-2">🥕</span> รายจ่าย
+        </button>
+      </div>
+      <input type="text" id="description" placeholder="ชื่อรายการ เช่น [อาหาร] ข้าวหมูทอด" class="w-full mb-4 p-3 border border-[#DAA06D] rounded-lg focus:ring-2 focus:ring-[#F0EAD6] focus:border-transparent text-gray-700 placeholder-gray-400" />
+      <input type="number" id="amount" placeholder="จำนวนเงิน เช่น 100" class="w-full mb-4 p-3 border border-[#DAA06D] rounded-lg focus:ring-2 focus:ring-[#F0EAD6] focus:border-transparent text-gray-700 placeholder-gray-400" />
+      <select id="category" class="w-full mb-4 p-3 border border-[#DAA06D] rounded-lg focus:ring-2 focus:ring-[#F0EAD6] focus:border-transparent bg-white text-gray-700">
+        <option value="">เลือกหมวดหมู่ (ไม่บังคับ)</option>
+        <option value="อาหาร">🍔 อาหาร</option>
+        <option value="เดินทาง">🚗 เดินทาง</option>
+        <option value="เงินเดือน">💼 เงินเดือน</option>
+        <option value="บันเทิง">🎉 บันเทิง</option>
+        <option value="อื่นๆ">✏️ อื่นๆ</option>
+      </select>
+      <input type="date" id="date" class="w-full mb-5 p-3 border border-[#DAA06D] rounded-lg focus:ring-2 focus:ring-[#F0EAD6] focus:border-transparent text-gray-700" />
+      <button id="submitBtn" onclick="submitData()" class="w-full bg-gradient-to-r from-[#D2691E] to-[#CD5C5C] hover:from-[#CD5C5C] hover:to-[#D2691E] text-white font-bold py-3 rounded-full shadow-lg transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-[#F0EAD6] active:scale-100">
+        🍪 บันทึกรายการ
+      </button>
+    </div>
+
+    <div class="bg-white p-6 rounded-xl shadow-lg border border-[#F0EAD6]">
+      <h2 class="text-2xl font-bold text-[#D2691E] mb-4 flex items-center gap-2">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 text-[#DAA06D]" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 000 2v10a2 2 0 002 2h12a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm6 0a1 1 0 11-2 0v6a1 1 0 112 0V8z" clip-rule="evenodd"/>
+        </svg>
+        รายการย้อนหลัง
+      </h2>
+      <div id="recordList" class="text-sm space-y-4"></div>
+    </div>
+  </div>
+
+  <script>
+    // **โปรดเปลี่ยน URL นี้ด้วย Web app URL ของ Google Apps Script ของคุณ**
+    // **สำคัญมาก: ตรวจสอบให้แน่ใจว่า URL นี้ถูกต้องและ Apps Script ของคุณถูก Deploy โดยมีสิทธิ์เข้าถึงเป็น 'Anyone'**
+    const scriptUrl = "https://script.google.com/macros/s/AKfycbwMadovFRDPmJdIL1IHF-YPluuN96-w_r91bX0iRDWdNGFvjCWnjklwt7yfz4JmGvVw/exec"; // <--- ใส่ Web App URL ของคุณที่นี่
+
+    const submitBtn = document.getElementById("submitBtn");
+    let editModeData = null; 
+    let incomeExpenseChart = null;
+
+    // Get references to the new buttons and amount input
+    const incomeBtnNew = document.getElementById("incomeBtnNew");
+    const expenseBtnNew = document.getElementById("expenseBtnNew");
+    const amountInput = document.getElementById("amount");
+
+    // New variable to track the last selected type for submission logic
+    let currentInputType = 'income'; // Default to income
+
+    // Event listeners for new income/expense buttons
+    incomeBtnNew.addEventListener('click', () => {
+        currentInputType = 'income';
+        let currentAmount = parseFloat(amountInput.value);
+        console.log("Income button clicked. Current amount (parsed):", currentAmount, "Raw value:", amountInput.value);
+        if (!isNaN(currentAmount) && currentAmount < 0) { // If it's a negative number
+            amountInput.value = Math.abs(currentAmount); // Convert to positive
+            console.log("Amount changed to positive:", amountInput.value);
+        } else if (amountInput.value === '-') { // If it's just a '-' sign
+            amountInput.value = ''; // Clear it
+            console.log("Amount changed to empty.");
+        }
+        // If it's already positive, or empty, or not a number, do nothing.
+    });
+
+    expenseBtnNew.addEventListener('click', () => {
+        currentInputType = 'expense';
+        let currentAmount = parseFloat(amountInput.value);
+        console.log("Expense button clicked. Current amount (parsed):", currentAmount, "Raw value:", amountInput.value);
+        if (amountInput.value === '' || amountInput.value === '0') { // If empty or 0, just put '-'
+            amountInput.value = '-';
+            console.log("Amount changed to '-'.");
+        } else if (!isNaN(currentAmount)) { // If it's a number (excluding just '-')
+            if (currentAmount >= 0) { // If positive or zero, make it negative
+                amountInput.value = -Math.abs(currentAmount);
+                console.log("Amount changed to negative:", amountInput.value);
+            }
+            // If it's already negative, do nothing.
+        }
+    });
+
+
+    // Function to format date from Überblick-MM-DD (from input/GS) to DD/MM/YYYY (for display)
+    function toDisplayDate(dateStr) {
+      if (!dateStr) return '';
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) {
+        console.warn("toDisplayDate: Invalid date string received, returning original. String:", dateStr);
+        return dateStr; // Return original if invalid date
+      }
+      const day = String(d.getDate()).padStart(2, '0');
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const year = d.getFullYear();
+      return `${day}/${month}/${year}`;
+    }
+
+    // Function to format date from Überblick-MM-DD (from sheet) to Überblick-MM-DD (for input type="date")
+    function toInputDate(dateStr) {
+      if (!dateStr) return '';
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) {
+        console.warn("toInputDate: Invalid date string received, returning empty. String:", dateStr);
+        return ''; // Return empty if invalid date
+      }
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
+    async function submitData() {
+      if (submitBtn.disabled) return;
+
+      const descriptionInput = document.getElementById("description").value.trim();
+      let amountValue = document.getElementById("amount").value.trim(); // Get value as string
+      const dateInput = document.getElementById("date").value; // Überblick-MM-DD
+      const categoryInput = document.getElementById("category").value;
+
+      if (!descriptionInput || amountValue === '' || !dateInput) { // Check for empty amount string
+        Toastify({
+          text: "⚠️ กรุณากรอกข้อมูล ชื่อรายการ, จำนวนเงิน และวันที่ ให้ครบถ้วน!",
+          duration: 3000,
+          close: true,
+          gravity: "top", 
+          position: "center", 
+          backgroundColor: "linear-gradient(to right, #FF4B2B, #FF416C)",
+          stopOnFocus: true, 
+        }).showToast();
+        return;
+      }
+
+      let finalAmount = parseFloat(amountValue); // Parse the value, can be positive or negative
+      if (isNaN(finalAmount)) {
+        Toastify({
+          text: "⚠️ จำนวนเงินไม่ถูกต้อง! กรุณาใส่ตัวเลข",
+          duration: 3000,
+          close: true,
+          gravity: "top",
+          position: "center",
+          backgroundColor: "linear-gradient(to right, #FF4B2B, #FF416C)",
+          stopOnFocus: true,
+        }).showToast();
+        return;
+      }
+
+      // Ensure amount sign is correct before sending based on currentInputType
+      console.log("submitData: Before final amount adjustment. currentInputType:", currentInputType, "parsed amount:", finalAmount);
+      if (currentInputType === 'expense' && finalAmount > 0) {
+          finalAmount = -finalAmount;
+          console.log("submitData: Adjusted to negative for expense:", finalAmount);
+      } else if (currentInputType === 'income' && finalAmount < 0) {
+          finalAmount = Math.abs(finalAmount);
+          console.log("submitData: Adjusted to positive for income:", finalAmount);
+      }
+      
+      // Prepend category to description if selected
+      const finalDescription = categoryInput ? `[${categoryInput}] ${descriptionInput}` : descriptionInput;
+
+      let payload = {};
+      if (editModeData) { 
+        payload = {
+          action: "edit", 
+          originalUniqueId: editModeData.uniqueId, // Use uniqueId for matching
+          description: finalDescription,
+          amount: finalAmount,
+          date: dateInput // Überblick-MM-DD
+        };
+      } else { 
+        payload = {
+          action: "add", 
+          description: finalDescription,
+          amount: finalAmount,
+          date: dateInput, // Überblick-MM-DD
+          uniqueId: new Date().getTime() // Generate unique ID for new records
+        };
+      }
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = "⏳ กำลังบันทึก...";
+
+      try {
+        const response = await fetch(scriptUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams(payload).toString()
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const result = await response.json(); // Assuming Apps Script returns JSON
+        if (result.result === 'success') {
+            Toastify({
+                text: "✅ บันทึกข้อมูลสำเร็จ!",
+                duration: 2000,
+                close: true,
+                gravity: "top", 
+                position: "center", 
+                backgroundColor: "linear-gradient(to right, #6D9773, #A5DD9B)", /* Cookie Run Green */
+                stopOnFocus: true,
+            }).showToast();
+            setTimeout(() => {
+                location.reload(); 
+            }, 2000); 
+        } else {
+            throw new Error(result.message || 'Unknown error');
+        }
+      } catch (error) {
+        console.error("Error submitting data:", error);
+        Toastify({
+          text: `❌ บันทึกข้อมูลไม่สำเร็จ! ${error.message || ''} โปรดตรวจสอบการเชื่อมต่อและ URL ของ Apps Script`,
+          duration: 5000,
+          close: true,
+          gravity: "top", 
+          position: "center", 
+          backgroundColor: "linear-gradient(to right, #FF4B2B, #FF416C)",
+          stopOnFocus: true, 
+        }).showToast();
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = "🍪 บันทึกรายการ";
+      }
+    }
+
+    window.deleteRecord = async function(uniqueId, description, amount, date) {
+      if (!confirm(`คุณต้องการลบรายการนี้จริงหรือไม่?\nวันที่: ${toDisplayDate(date)}\nรายการ: ${description}\nจำนวน: ${amount.toLocaleString()} บาท`)) return; 
+
+      Toastify({
+        text: "🗑️ กำลังลบรายการ...",
+        duration: 1500,
+        close: false,
+        gravity: "top",
+        position: "center",
+        backgroundColor: "linear-gradient(to right, #FF7F50, #FF6347)",
+        stopOnFocus: true,
+      }).showToast();
+
+      const payload = {
+        action: 'delete', 
+        uniqueId: uniqueId, // Use uniqueId for precise deletion
+        // Include other fields for confirmation/logging in Apps Script
+        description: description,
+        amount: amount,
+        date: date
+      };
+      
+      try {
+        const response = await fetch(scriptUrl, {
+          method: "POST", 
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams(payload).toString()
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const result = await response.json();
+        if (result.result === 'success') {
+            Toastify({
+                text: "🗑️ ลบข้อมูลเรียบร้อย!",
+                duration: 2000,
+                close: true,
+                gravity: "top", 
+                position: "center", 
+                backgroundColor: "linear-gradient(to right, #E91E63, #C2185B)", /* Cookie Run Red */
+                stopOnFocus: true,
+            }).showToast();
+            setTimeout(() => {
+                location.reload(); 
+            }, 2000); 
+        } else {
+            throw new Error(result.message || 'Unknown error');
+        }
+      } catch (error) {
+        console.error("Error deleting data:", error);
+        Toastify({
+          text: `❌ ลบข้อมูลไม่สำเร็จ! ${error.message || ''} โปรดตรวจสอบการเชื่อมต่อและ URL ของ Apps Script`,
+          duration: 5000,
+          close: true,
+          gravity: "top", 
+          position: "center", 
+          backgroundColor: "linear-gradient(to right, #FF4B2B, #FF416C)",
+          stopOnFocus: true, 
+        }).showToast();
+      }
+    }
+
+    window.editRecord = async function(date, description, amount, uniqueId) {
+        document.getElementById("description").value = description.replace(/\[.*?\]\s?/, "");
+        document.getElementById("amount").value = amount; // Keep original signed amount for editing
+        document.getElementById("date").value = toInputDate(date); // Convert to Überblick-MM-DD for input type="date"
+        
+        const categoryMatch = description.match(/\[(.*?)\]/);
+        if (categoryMatch && categoryMatch[1]) {
+          document.getElementById("category").value = categoryMatch[1];
+        } else {
+          document.getElementById("category").value = ""; // Clear category if not found
+        }
+        
+        editModeData = {
+          description: description,
+          amount: amount,
+          date: date, // Original date string from sheet
+          uniqueId: uniqueId 
+        };
+        
+        submitBtn.textContent = "💾 อัปเดตรายการ";
+        
+        Toastify({
+          text: "✏️ กำลังแก้ไขรายการ... (กรอกข้อมูลใหม่แล้วกด 'อัปเดตรายการ')",
+          duration: 3000,
+          close: true,
+          gravity: "top", 
+          position: "center", 
+          backgroundColor: "linear-gradient(to right, #DAA06D, #B07B4C)", /* Cookie Run Brown */
+          stopOnFocus: true,
+        }).showToast();
+    }
+
+    function resetForm() {
+      document.getElementById("description").value = "";
+      document.getElementById("amount").value = "";
+      document.getElementById("date").value = "";
+      document.getElementById("category").value = ""; // Reset category dropdown
+      submitBtn.textContent = "🍪 บันทึกรายการ";
+      editModeData = null; 
+      currentInputType = 'income'; // Reset type to default
+    }
+
+    function renderChart(totalIncome, totalExpense) {
+      const ctx = document.getElementById("incomeExpenseChart").getContext("2d");
+      if (incomeExpenseChart) {
+        incomeExpenseChart.destroy(); 
+      }
+      incomeExpenseChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: ['รายรับ', 'รายจ่าย'],
+          datasets: [{
+            label: 'ยอดรวม (บาท)',
+            data: [totalIncome, Math.abs(totalExpense)],
+            backgroundColor: ['#4CAF50', '#E91E63'], /* Green for Income, Pink for Expense */
+            borderRadius: 15, /* More rounded for jelly effect */
+            borderSkipped: false, /* Ensure all corners are rounded */
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              enabled: true,
+              callbacks: {
+                label: function(context) {
+                  return context.dataset.label + ': ฿' + context.raw.toLocaleString();
+                }
+              }
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              grid: {
+                color: '#EADBC8' /* Lighter grid lines */
+              },
+              ticks: {
+                callback: function(value) {
+                  return '฿' + value.toLocaleString(); 
+                }
+              }
+            },
+            x: {
+              grid: {
+                display: false
+              }
+            }
+          },
+          animation: {
+            duration: 1000, /* Slower animation for jelly effect */
+            easing: 'easeOutElastic', /* Bouncy easing function */
+            onComplete: function() {
+              // Optional: Add a subtle bounce after animation completes
+              // This might require a custom plugin or more advanced Chart.js features
+            }
+          }
+        }
+      });
+    }
+
+    async function fetchData() {
+      try {
+        const res = await fetch(scriptUrl + '?t=' + new Date().getTime()); 
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        const data = await res.json();
+        
+        if (!Array.isArray(data)) {
+            console.error("HTML (fetchData): Data received from Apps Script is not an array:", data);
+            Toastify({
+                text: "❌ ข้อผิดพลาด: ข้อมูลที่ได้รับจาก Apps Script ไม่ใช่รูปแบบที่ถูกต้อง (ไม่ใช่ Array) โปรดตรวจสอบ Log ใน Apps Script และ Console ของเบราว์เซอร์!",
+                duration: 7000,
+                close: true,
+                gravity: "top", 
+                position: "center", 
+                backgroundColor: "linear-gradient(to right, #FF4B2B, #FF416C)",
+                stopOnFocus: true, 
+            }).showToast();
+            return; // Stop execution if data is not an array
+        }
+
+        let totalIncome = 0, totalExpense = 0;
+        const list = document.getElementById("recordList");
+        list.innerHTML = ""; 
+
+        const grouped = {};
+        data.forEach((row) => { 
+          const displayDate = toDisplayDate(row.date);
+          if (!grouped[displayDate]) grouped[displayDate] = [];
+          grouped[displayDate].push({ 
+            description: row.description, 
+            amount: row.amount, 
+            date: row.date, // Keep Überblick-MM-DD for consistency with input/backend
+            uniqueId: row.uniqueId 
+          }); 
+
+          if (row.amount >= 0) totalIncome += row.amount;
+          else totalExpense += row.amount;
+        });
+
+        // Sort dates in descending order (newest first)
+        Object.keys(grouped).sort((a, b) => {
+            // Parse DD/MM/YYYY strings for sorting
+            const [dayA, monthA, yearA] = a.split('/').map(Number);
+            const [dayB, monthB, yearB] = b.split('/').map(Number);
+            const dateA = new Date(yearA, monthA - 1, dayA);
+            const dateB = new Date(yearB, monthB - 1, dayB);
+            return dateB - dateA;
+        }).forEach(date => {
+          const section = document.createElement("div");
+          section.className = "mb-4 pb-2 border-b border-[#EADBC8] last:border-b-0"; 
+          section.innerHTML = `<div class="font-bold text-[#D2691E] text-lg mb-2">${date}</div>`; 
+
+          // Sort items within each date by uniqueId (timestamp, newest first)
+          grouped[date].sort((a, b) => b.uniqueId - a.uniqueId).forEach((row, i) => {
+            const item = document.createElement("div");
+            const rowClass = i % 2 === 0 ? 'record-item-even' : 'record-item-odd';
+            item.className = `flex flex-col sm:flex-row sm:justify-between sm:items-center py-2 px-3 rounded-lg ${rowClass}`;
+            
+            const amountClass = row.amount >= 0 ? 'text-[#8B4513]' : 'text-[#E91E63]'; 
+            const amountSign = row.amount >= 0 ? '+' : '';
+
+            item.innerHTML = `
+              <span class="text-gray-800 text-sm md:text-base font-medium mr-2 mb-1 sm:mb-0">• ${row.description}</span>
+              <div class="flex items-center flex-shrink-0 self-end sm:self-center">
+                <span class="${amountClass} font-semibold text-xs md:text-base mr-3">${amountSign}${row.amount.toLocaleString()} บาท</span>
+                <button onclick="window.editRecord('${row.date}', '${row.description.replace(/'/g, "\\'")}', ${row.amount}, ${row.uniqueId})" class="text-gray-500 hover:text-[#DAA06D] transition duration-150 ease-in-out p-1 rounded-full hover:bg-[#F0EAD6]">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zm-3.109 9.563l-2.093.748.748-2.093 7.842-7.842 1.345 1.345-7.842 7.842z"/>
+                  </svg>
+                </button>
+                <button onclick="window.deleteRecord(${row.uniqueId}, '${row.description.replace(/'/g, "\\'")}', ${row.amount}, '${row.date}')" class="text-gray-500 hover:text-[#E91E63] transition duration-150 ease-in-out p-1 rounded-full hover:bg-[#FCE4EC} ml-1">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a2 2 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm6 0a1 1 0 11-2 0v6a1 1 0 112 0V8z" clip-rule="evenodd"/>
+                  </svg>
+                </button>
+              </div>
+            `;
+            section.appendChild(item);
+          });
+          list.appendChild(section);
+        });
+
+        document.getElementById("totalIncome").textContent = `฿${totalIncome.toLocaleString()}`;
+        document.getElementById("totalExpense").textContent = `฿${Math.abs(totalExpense).toLocaleString()}`;
+        document.getElementById("balance").textContent = `฿${(totalIncome + totalExpense).toLocaleString()}`;
+
+        renderChart(totalIncome, totalExpense);
+      } catch (error) {
+        console.error("Error fetching data:", error);
+        Toastify({
+          text: "❌ ไม่สามารถโหลดข้อมูลได้! โปรดตรวจสอบการเชื่อมต่อและ URL ของ Apps Script",
+          duration: 5000,
+          close: true,
+          gravity: "top", 
+          position: "center", 
+          backgroundColor: "linear-gradient(to right, #FF4B2B, #FF416C)",
+          stopOnFocus: true, 
+        }).showToast();
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", fetchData);
+    document.addEventListener("DOMContentLoaded", () => {
+        // Set today's date as default for the date input
+        const today = new Date();
+        const year = today.getFullYear();
+        const month = String(today.getMonth() + 1).padStart(2, '0');
+        const day = String(today.getDate()).padStart(2, '0');
+        document.getElementById('date').value = `${year}-${month}-${day}`;
+    });
+  </script>
+</body>
+</html>
