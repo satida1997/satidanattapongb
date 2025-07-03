@@ -79,7 +79,6 @@
 
     <div class="bg-white p-6 rounded-xl shadow-lg mb-8 border border-[#F0EAD6]">
       <canvas id="incomeExpenseChart" height="150"></canvas>
-      
     </div>
 
     <div class="bg-white p-6 rounded-xl shadow-lg mb-8 border border-[#F0EAD6]">
@@ -99,7 +98,7 @@
         <option value="เดินทาง">🚗 เดินทาง</option>
         <option value="เงินเดือน">💼 เงินเดือน</option>
         <option value="บันเทิง">🎉 บันเทิง</option>
-        <option value="อื่นๆ">✏️ อื่นๆ</option>
+        <option value="หนี้สิน">💰 หนี้สิน</option> <option value="อื่นๆ">✏️ อื่นๆ</option>
       </select>
       <input type="date" id="date" class="w-full mb-5 p-3 border border-[#DAA06D] rounded-lg focus:ring-2 focus:ring-[#F0EAD6] focus:border-transparent text-gray-700" />
       <button id="submitBtn" onclick="submitData()" class="w-full bg-gradient-to-r from-[#D2691E] to-[#CD5C5C] hover:from-[#CD5C5C] hover:to-[#D2691E] text-white font-bold py-3 rounded-full shadow-lg transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-[#F0EAD6] active:scale-100">
@@ -124,56 +123,45 @@
     const scriptUrl = "https://script.google.com/macros/s/AKfycbwMadovFRDPmJdIL1IHF-YPluuN96-w_r91bX0iRDWdNGFvjCWnjklwt7yfz4JmGvVw/exec"; // <--- ใส่ Web App URL ของคุณที่นี่
 
     const submitBtn = document.getElementById("submitBtn");
-    let editModeData = null; 
+    let editModeData = null;
     let incomeExpenseChart = null;
+    // ไม่มีการประกาศ debtOverviewChart อีกต่อไป
 
-    // Get references to the new buttons and amount input
     const incomeBtnNew = document.getElementById("incomeBtnNew");
     const expenseBtnNew = document.getElementById("expenseBtnNew");
     const amountInput = document.getElementById("amount");
+    const categoryInput = document.getElementById("category");
 
-    // New variable to track the last selected type for submission logic
-    let currentInputType = 'income'; // Default to income
+    let currentInputType = 'income';
 
-    // Event listeners for new income/expense buttons
     incomeBtnNew.addEventListener('click', () => {
         currentInputType = 'income';
         let currentAmount = parseFloat(amountInput.value);
-        console.log("Income button clicked. Current amount (parsed):", currentAmount, "Raw value:", amountInput.value);
-        if (!isNaN(currentAmount) && currentAmount < 0) { // If it's a negative number
-            amountInput.value = Math.abs(currentAmount); // Convert to positive
-            console.log("Amount changed to positive:", amountInput.value);
-        } else if (amountInput.value === '-') { // If it's just a '-' sign
-            amountInput.value = ''; // Clear it
-            console.log("Amount changed to empty.");
+        if (!isNaN(currentAmount) && currentAmount < 0) {
+            amountInput.value = Math.abs(currentAmount);
+        } else if (amountInput.value === '-') {
+            amountInput.value = '';
         }
-        // If it's already positive, or empty, or not a number, do nothing.
     });
 
     expenseBtnNew.addEventListener('click', () => {
         currentInputType = 'expense';
         let currentAmount = parseFloat(amountInput.value);
-        console.log("Expense button clicked. Current amount (parsed):", currentAmount, "Raw value:", amountInput.value);
-        if (amountInput.value === '' || amountInput.value === '0') { // If empty or 0, just put '-'
+        if (amountInput.value === '' || amountInput.value === '0') {
             amountInput.value = '-';
-            console.log("Amount changed to '-'.");
-        } else if (!isNaN(currentAmount)) { // If it's a number (excluding just '-')
-            if (currentAmount >= 0) { // If positive or zero, make it negative
+        } else if (!isNaN(currentAmount)) {
+            if (currentAmount >= 0) {
                 amountInput.value = -Math.abs(currentAmount);
-                console.log("Amount changed to negative:", amountInput.value);
             }
-            // If it's already negative, do nothing.
         }
     });
 
-
-    // Function to format date from Überblick-MM-DD (from input/GS) to DD/MM/YYYY (for display)
     function toDisplayDate(dateStr) {
       if (!dateStr) return '';
       const d = new Date(dateStr);
       if (isNaN(d.getTime())) {
         console.warn("toDisplayDate: Invalid date string received, returning original. String:", dateStr);
-        return dateStr; // Return original if invalid date
+        return dateStr;
       }
       const day = String(d.getDate()).padStart(2, '0');
       const month = String(d.getMonth() + 1).padStart(2, '0');
@@ -181,13 +169,12 @@
       return `${day}/${month}/${year}`;
     }
 
-    // Function to format date from Überblick-MM-DD (from sheet) to Überblick-MM-DD (for input type="date")
     function toInputDate(dateStr) {
       if (!dateStr) return '';
       const d = new Date(dateStr);
       if (isNaN(d.getTime())) {
         console.warn("toInputDate: Invalid date string received, returning empty. String:", dateStr);
-        return ''; // Return empty if invalid date
+        return '';
       }
       const year = d.getFullYear();
       const month = String(d.getMonth() + 1).padStart(2, '0');
@@ -199,24 +186,24 @@
       if (submitBtn.disabled) return;
 
       const descriptionInput = document.getElementById("description").value.trim();
-      let amountValue = document.getElementById("amount").value.trim(); // Get value as string
-      const dateInput = document.getElementById("date").value; // Überblick-MM-DD
+      let amountValue = document.getElementById("amount").value.trim();
+      const dateInput = document.getElementById("date").value;
       const categoryInput = document.getElementById("category").value;
 
-      if (!descriptionInput || amountValue === '' || !dateInput) { // Check for empty amount string
+      if (!descriptionInput || amountValue === '' || !dateInput) {
         Toastify({
           text: "⚠️ กรุณากรอกข้อมูล ชื่อรายการ, จำนวนเงิน และวันที่ ให้ครบถ้วน!",
           duration: 3000,
           close: true,
-          gravity: "top", 
-          position: "center", 
+          gravity: "top",
+          position: "center",
           backgroundColor: "linear-gradient(to right, #FF4B2B, #FF416C)",
-          stopOnFocus: true, 
+          stopOnFocus: true,
         }).showToast();
         return;
       }
 
-      let finalAmount = parseFloat(amountValue); // Parse the value, can be positive or negative
+      let finalAmount = parseFloat(amountValue);
       if (isNaN(finalAmount)) {
         Toastify({
           text: "⚠️ จำนวนเงินไม่ถูกต้อง! กรุณาใส่ตัวเลข",
@@ -230,35 +217,35 @@
         return;
       }
 
-      // Ensure amount sign is correct before sending based on currentInputType
-      console.log("submitData: Before final amount adjustment. currentInputType:", currentInputType, "parsed amount:", finalAmount);
-      if (currentInputType === 'expense' && finalAmount > 0) {
-          finalAmount = -finalAmount;
-          console.log("submitData: Adjusted to negative for expense:", finalAmount);
-      } else if (currentInputType === 'income' && finalAmount < 0) {
-          finalAmount = Math.abs(finalAmount);
-          console.log("submitData: Adjusted to positive for income:", finalAmount);
+      // ตรรกะการจัดการจำนวนเงินสำหรับหมวดหมู่ "หนี้สิน"
+      // ถ้าเลือก "หนี้สิน" ไม่มีการปรับเครื่องหมายตามปุ่มรายรับ/รายจ่าย
+      // เพราะหนี้สินสามารถเป็นบวก (กู้) หรือลบ (ชำระคืน) ได้
+      if (categoryInput !== 'หนี้สิน') {
+          if (currentInputType === 'expense' && finalAmount > 0) {
+              finalAmount = -finalAmount;
+          } else if (currentInputType === 'income' && finalAmount < 0) {
+              finalAmount = Math.abs(finalAmount);
+          }
       }
-      
-      // Prepend category to description if selected
+
       const finalDescription = categoryInput ? `[${categoryInput}] ${descriptionInput}` : descriptionInput;
 
       let payload = {};
-      if (editModeData) { 
+      if (editModeData) {
         payload = {
-          action: "edit", 
-          originalUniqueId: editModeData.uniqueId, // Use uniqueId for matching
+          action: "edit",
+          originalUniqueId: editModeData.uniqueId,
           description: finalDescription,
           amount: finalAmount,
-          date: dateInput // Überblick-MM-DD
+          date: dateInput
         };
-      } else { 
+      } else {
         payload = {
-          action: "add", 
+          action: "add",
           description: finalDescription,
           amount: finalAmount,
-          date: dateInput, // Überblick-MM-DD
-          uniqueId: new Date().getTime() // Generate unique ID for new records
+          date: dateInput,
+          uniqueId: new Date().getTime()
         };
       }
 
@@ -276,20 +263,20 @@
           throw new Error(`HTTP error! status: ${response.status}`);
         }
 
-        const result = await response.json(); // Assuming Apps Script returns JSON
+        const result = await response.json();
         if (result.result === 'success') {
             Toastify({
                 text: "✅ บันทึกข้อมูลสำเร็จ!",
                 duration: 2000,
                 close: true,
-                gravity: "top", 
-                position: "center", 
-                backgroundColor: "linear-gradient(to right, #6D9773, #A5DD9B)", /* Cookie Run Green */
+                gravity: "top",
+                position: "center",
+                backgroundColor: "linear-gradient(to right, #6D9773, #A5DD9B)",
                 stopOnFocus: true,
             }).showToast();
             setTimeout(() => {
-                location.reload(); 
-            }, 2000); 
+                location.reload();
+            }, 2000);
         } else {
             throw new Error(result.message || 'Unknown error');
         }
@@ -299,10 +286,10 @@
           text: `❌ บันทึกข้อมูลไม่สำเร็จ! ${error.message || ''} โปรดตรวจสอบการเชื่อมต่อและ URL ของ Apps Script`,
           duration: 5000,
           close: true,
-          gravity: "top", 
-          position: "center", 
+          gravity: "top",
+          position: "center",
           backgroundColor: "linear-gradient(to right, #FF4B2B, #FF416C)",
-          stopOnFocus: true, 
+          stopOnFocus: true,
         }).showToast();
       } finally {
         submitBtn.disabled = false;
@@ -311,7 +298,7 @@
     }
 
     window.deleteRecord = async function(uniqueId, description, amount, date) {
-      if (!confirm(`คุณต้องการลบรายการนี้จริงหรือไม่?\nวันที่: ${toDisplayDate(date)}\nรายการ: ${description}\nจำนวน: ${amount.toLocaleString()} บาท`)) return; 
+      if (!confirm(`คุณต้องการลบรายการนี้จริงหรือไม่?\nวันที่: ${toDisplayDate(date)}\nรายการ: ${description}\nจำนวน: ${amount.toLocaleString()} บาท`)) return;
 
       Toastify({
         text: "🗑️ กำลังลบรายการ...",
@@ -324,17 +311,16 @@
       }).showToast();
 
       const payload = {
-        action: 'delete', 
-        uniqueId: uniqueId, // Use uniqueId for precise deletion
-        // Include other fields for confirmation/logging in Apps Script
+        action: 'delete',
+        uniqueId: uniqueId,
         description: description,
         amount: amount,
         date: date
       };
-      
+
       try {
         const response = await fetch(scriptUrl, {
-          method: "POST", 
+          method: "POST",
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
           body: new URLSearchParams(payload).toString()
         });
@@ -349,14 +335,14 @@
                 text: "🗑️ ลบข้อมูลเรียบร้อย!",
                 duration: 2000,
                 close: true,
-                gravity: "top", 
-                position: "center", 
-                backgroundColor: "linear-gradient(to right, #E91E63, #C2185B)", /* Cookie Run Red */
+                gravity: "top",
+                position: "center",
+                backgroundColor: "linear-gradient(to right, #E91E63, #C2185B)",
                 stopOnFocus: true,
             }).showToast();
             setTimeout(() => {
-                location.reload(); 
-            }, 2000); 
+                location.reload();
+            }, 2000);
         } else {
             throw new Error(result.message || 'Unknown error');
         }
@@ -366,42 +352,48 @@
           text: `❌ ลบข้อมูลไม่สำเร็จ! ${error.message || ''} โปรดตรวจสอบการเชื่อมต่อและ URL ของ Apps Script`,
           duration: 5000,
           close: true,
-          gravity: "top", 
-          position: "center", 
+          gravity: "top",
+          position: "center",
           backgroundColor: "linear-gradient(to right, #FF4B2B, #FF416C)",
-          stopOnFocus: true, 
+          stopOnFocus: true,
         }).showToast();
       }
     }
 
     window.editRecord = async function(date, description, amount, uniqueId) {
         document.getElementById("description").value = description.replace(/\[.*?\]\s?/, "");
-        document.getElementById("amount").value = amount; // Keep original signed amount for editing
-        document.getElementById("date").value = toInputDate(date); // Convert to Überblick-MM-DD for input type="date"
-        
+        document.getElementById("amount").value = amount;
+        document.getElementById("date").value = toInputDate(date);
+
         const categoryMatch = description.match(/\[(.*?)\]/);
         if (categoryMatch && categoryMatch[1]) {
           document.getElementById("category").value = categoryMatch[1];
         } else {
-          document.getElementById("category").value = ""; // Clear category if not found
+          document.getElementById("category").value = "";
         }
-        
+
         editModeData = {
           description: description,
           amount: amount,
-          date: date, // Original date string from sheet
-          uniqueId: uniqueId 
+          date: date,
+          uniqueId: uniqueId
         };
-        
+
         submitBtn.textContent = "💾 อัปเดตรายการ";
-        
+
+        if (amount >= 0) {
+            currentInputType = 'income';
+        } else {
+            currentInputType = 'expense';
+        }
+
         Toastify({
           text: "✏️ กำลังแก้ไขรายการ... (กรอกข้อมูลใหม่แล้วกด 'อัปเดตรายการ')",
           duration: 3000,
           close: true,
-          gravity: "top", 
-          position: "center", 
-          backgroundColor: "linear-gradient(to right, #DAA06D, #B07B4C)", /* Cookie Run Brown */
+          gravity: "top",
+          position: "center",
+          backgroundColor: "linear-gradient(to right, #DAA06D, #B07B4C)",
           stopOnFocus: true,
         }).showToast();
     }
@@ -410,16 +402,16 @@
       document.getElementById("description").value = "";
       document.getElementById("amount").value = "";
       document.getElementById("date").value = "";
-      document.getElementById("category").value = ""; // Reset category dropdown
+      document.getElementById("category").value = "";
       submitBtn.textContent = "🍪 บันทึกรายการ";
-      editModeData = null; 
-      currentInputType = 'income'; // Reset type to default
+      editModeData = null;
+      currentInputType = 'income';
     }
 
     function renderChart(totalIncome, totalExpense) {
       const ctx = document.getElementById("incomeExpenseChart").getContext("2d");
       if (incomeExpenseChart) {
-        incomeExpenseChart.destroy(); 
+        incomeExpenseChart.destroy();
       }
       incomeExpenseChart = new Chart(ctx, {
         type: 'bar',
@@ -428,9 +420,9 @@
           datasets: [{
             label: 'ยอดรวม (บาท)',
             data: [totalIncome, Math.abs(totalExpense)],
-            backgroundColor: ['#4CAF50', '#E91E63'], /* Green for Income, Pink for Expense */
-            borderRadius: 15, /* More rounded for jelly effect */
-            borderSkipped: false, /* Ensure all corners are rounded */
+            backgroundColor: ['#4CAF50', '#E91E63'],
+            borderRadius: 15,
+            borderSkipped: false,
           }]
         },
         options: {
@@ -450,11 +442,11 @@
             y: {
               beginAtZero: true,
               grid: {
-                color: '#EADBC8' /* Lighter grid lines */
+                color: '#EADBC8'
               },
               ticks: {
                 callback: function(value) {
-                  return '฿' + value.toLocaleString(); 
+                  return '฿' + value.toLocaleString();
                 }
               }
             },
@@ -465,61 +457,62 @@
             }
           },
           animation: {
-            duration: 1000, /* Slower animation for jelly effect */
-            easing: 'easeOutElastic', /* Bouncy easing function */
+            duration: 1000,
+            easing: 'easeOutElastic',
             onComplete: function() {
-              // Optional: Add a subtle bounce after animation completes
-              // This might require a custom plugin or more advanced Chart.js features
             }
           }
         }
       });
     }
 
+    // ไม่มีฟังก์ชัน renderDebtOverviewChart อีกต่อไป
+
     async function fetchData() {
       try {
-        const res = await fetch(scriptUrl + '?t=' + new Date().getTime()); 
+        const res = await fetch(scriptUrl + '?t=' + new Date().getTime());
         if (!res.ok) {
           throw new Error(`HTTP error! status: ${res.status}`);
         }
         const data = await res.json();
-        
+
         if (!Array.isArray(data)) {
             console.error("HTML (fetchData): Data received from Apps Script is not an array:", data);
             Toastify({
                 text: "❌ ข้อผิดพลาด: ข้อมูลที่ได้รับจาก Apps Script ไม่ใช่รูปแบบที่ถูกต้อง (ไม่ใช่ Array) โปรดตรวจสอบ Log ใน Apps Script และ Console ของเบราว์เซอร์!",
                 duration: 7000,
                 close: true,
-                gravity: "top", 
-                position: "center", 
+                gravity: "top",
+                position: "center",
                 backgroundColor: "linear-gradient(to right, #FF4B2B, #FF416C)",
-                stopOnFocus: true, 
+                stopOnFocus: true,
             }).showToast();
-            return; // Stop execution if data is not an array
+            return;
         }
 
         let totalIncome = 0, totalExpense = 0;
+        // ไม่มีการคำนวณ totalDebtBorrowed และ totalDebtRepaid อีกต่อไป
+
         const list = document.getElementById("recordList");
-        list.innerHTML = ""; 
+        list.innerHTML = "";
 
         const grouped = {};
-        data.forEach((row) => { 
+        data.forEach((row) => {
           const displayDate = toDisplayDate(row.date);
           if (!grouped[displayDate]) grouped[displayDate] = [];
-          grouped[displayDate].push({ 
-            description: row.description, 
-            amount: row.amount, 
-            date: row.date, // Keep Überblick-MM-DD for consistency with input/backend
-            uniqueId: row.uniqueId 
-          }); 
+          grouped[displayDate].push({
+            description: row.description,
+            amount: row.amount,
+            date: row.date,
+            uniqueId: row.uniqueId
+          });
 
+          // การคำนวณรายรับ/รายจ่ายโดยรวม (รวมหนี้สินเข้าไปด้วย)
           if (row.amount >= 0) totalIncome += row.amount;
           else totalExpense += row.amount;
         });
 
-        // Sort dates in descending order (newest first)
         Object.keys(grouped).sort((a, b) => {
-            // Parse DD/MM/YYYY strings for sorting
             const [dayA, monthA, yearA] = a.split('/').map(Number);
             const [dayB, monthB, yearB] = b.split('/').map(Number);
             const dateA = new Date(yearA, monthA - 1, dayA);
@@ -527,16 +520,15 @@
             return dateB - dateA;
         }).forEach(date => {
           const section = document.createElement("div");
-          section.className = "mb-4 pb-2 border-b border-[#EADBC8] last:border-b-0"; 
-          section.innerHTML = `<div class="font-bold text-[#D2691E] text-lg mb-2">${date}</div>`; 
+          section.className = "mb-4 pb-2 border-b border-[#EADBC8] last:border-b-0";
+          section.innerHTML = `<div class="font-bold text-[#D2691E] text-lg mb-2">${date}</div>`;
 
-          // Sort items within each date by uniqueId (timestamp, newest first)
           grouped[date].sort((a, b) => b.uniqueId - a.uniqueId).forEach((row, i) => {
             const item = document.createElement("div");
             const rowClass = i % 2 === 0 ? 'record-item-even' : 'record-item-odd';
             item.className = `flex flex-col sm:flex-row sm:justify-between sm:items-center py-2 px-3 rounded-lg ${rowClass}`;
-            
-            const amountClass = row.amount >= 0 ? 'text-[#8B4513]' : 'text-[#E91E63]'; 
+
+            const amountClass = row.amount >= 0 ? 'text-[#8B4513]' : 'text-[#E91E63]';
             const amountSign = row.amount >= 0 ? '+' : '';
 
             item.innerHTML = `
@@ -564,24 +556,24 @@
         document.getElementById("totalExpense").textContent = `฿${Math.abs(totalExpense).toLocaleString()}`;
         document.getElementById("balance").textContent = `฿${(totalIncome + totalExpense).toLocaleString()}`;
 
-        renderChart(totalIncome, totalExpense);
+        renderChart(totalIncome, totalExpense); // ยังคงวาดกราฟแท่งรายรับ/รายจ่าย
+        // ไม่มีการเรียกใช้ renderDebtOverviewChart อีกต่อไป
       } catch (error) {
         console.error("Error fetching data:", error);
         Toastify({
           text: "❌ ไม่สามารถโหลดข้อมูลได้! โปรดตรวจสอบการเชื่อมต่อและ URL ของ Apps Script",
           duration: 5000,
           close: true,
-          gravity: "top", 
-          position: "center", 
+          gravity: "top",
+          position: "center",
           backgroundColor: "linear-gradient(to right, #FF4B2B, #FF416C)",
-          stopOnFocus: true, 
+          stopOnFocus: true,
         }).showToast();
       }
     }
 
     document.addEventListener("DOMContentLoaded", fetchData);
     document.addEventListener("DOMContentLoaded", () => {
-        // Set today's date as default for the date input
         const today = new Date();
         const year = today.getFullYear();
         const month = String(today.getMonth() + 1).padStart(2, '0');
